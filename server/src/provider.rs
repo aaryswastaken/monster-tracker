@@ -10,7 +10,7 @@ pub enum Vendors {
     Monoprix
 }
 
-struct Item {
+pub struct Item {
     item_id: u16,
     shop_id: u16,
     shop_type: Vendors

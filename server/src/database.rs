@@ -3,6 +3,8 @@ use std::result::Result;
 
 use mysql::*;
 
+use crate::provider;
+
 pub struct Update {
     item_id: u16,
     shop_id: u16,
@@ -12,11 +14,15 @@ pub struct Update {
 }
 
 impl Update {
-    fn launch(&self) -> Result<(), Box<dyn Error>> {
+    fn launch(&self, conn: Conn) -> Result<(), Box<dyn Error>> {
         return Ok(());
     }
 }
 
-pub fn launch_all(updates: Vec<Update>) -> Result<u16, Box<dyn Error>> {
+pub fn launch_all(conn: Conn, updates: Vec<Update>) -> Result<u16, Box<dyn Error>> {
     return Ok(0);
+}
+
+pub fn get_queries(conn: Conn) -> Vec<provider::Item> {
+    return vec![]
 }
