@@ -4,19 +4,16 @@ use std::result::Result;
 use mysql::*;
 use mysql::prelude::Queryable;
 
-extern crate chrono;
-
 use chrono::prelude::*;
 
 // TODO: add chrono crate
 
-pub fn connect(host: String, username: String, password: String, port: String, db_name: String) -> Result<(mut Pool, mut Conn), Box<dyn Error>> {
-    let connection_url = format!("mysql://{}:{}@{}:{}/{}", username, password, host, port, db_name)
+pub fn connect(host: String, username: String, password: String, port: String, db_name: String) -> Result<Pool, Box<dyn Error>> {
+    let connection_url = format!("mysql://{}:{}@{}:{}/{}", username, password, host, port, db_name);
 
-    let mut pool = Pool::new(connection_url)?;
-    let mut conn = pool.get_conn()?;
+    let pool = Pool::new(Opts::from_url(&connection_url)? )?;
 
-    return (pool, conn)
+    return Ok(pool)
 }
 
 pub struct Update {
@@ -38,7 +35,7 @@ pub struct QueryPart {
 }
 
 trait Prepare {
-    fn prepare(&self) -> String 
+    fn prepare(&self) -> String;
 }
 
 impl Prepare for u64 {
@@ -59,11 +56,11 @@ impl Update {
 
 pub fn launch_all(conn: &mut Conn, updates: Vec<Update>) -> Result<u16, Box<dyn Error>> {
     conn.exec_batch("INSERT INTO prices ('item_id', 'shop_id', 'date', 'value') VALUES (:item_id, :shop_id, :date, :value)",
-            updates.iter.map(|p| params! {
+            updates.iter().map(|p| params! {
                 "item_id" => p.item_id,
                 "shop_id" => p.shop_id,
-                "date" => p.query_epoch.prepare(), 
-                "value" => self.price
+                "date" => p.query_epoch.prepare(),
+                "value" => p.price
             })
         );
 

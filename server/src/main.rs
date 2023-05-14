@@ -5,6 +5,8 @@ use tokio;
 use std::time::Duration;
 use std::thread;
 
+use mysql::{Pool, PooledConn};
+
 mod provider;
 mod database;
 
@@ -15,37 +17,35 @@ fn value_or_default<T, E>(result: Result<T, E>, default: T) -> T {
     }
 }
 
-fn request_wrapper() {
+fn request_wrapper(conn: &mut PooledConn) {
     panic!("todo :)");
 }
 
-const DEFAULT_PERIOD = Duration::from_secs(15 * 60);
+const DEFAULT_PERIOD: Duration = Duration::from_secs(15 * 60);
 
-#[tokio::main]
-async fn main() {
+fn main() {
     let username = env::var("DB_USERNAME").expect("No username has been provided");
     let password = env::var("DB_PASSWORD").expect("No password has been provided");
 
-    let host = value_or_default(env::var("DB_SCHEMA"), 'monster_tracker');
-    
-    let port = value_or_default(env::var("DB_PORT"), '3306');
-    let schema = value_or_default(env::var("DB_SCHEMA"), 'monster_tracker');
+    let host = value_or_default(env::var("DB_SCHEMA"), "127.0.0.1".to_string());
+
+    let port = value_or_default(env::var("DB_PORT"), 3306.to_string());
+    let schema = value_or_default(env::var("DB_SCHEMA"), "monster_tracker".to_string());
 
     let period = match env::var("SCRAPER_PERIOD") {
-        Ok(v) => {
-            return match v.parse::<i32>() {
+        Ok(v) => match v.parse::<u64>() {
                 Ok(raw_period) => Duration::from_secs(raw_period * 60),
                 Err(_) => DEFAULT_PERIOD
             }
-        }
         Err(_) => DEFAULT_PERIOD
     };
 
-    let mut (pool, conn) = database::connect(host, username, password, port, schema);
+    let pool: Pool = database::connect(host, username, password, port, schema).unwrap();
 
     loop {
-        tokio::spawn(move {
-            request_wrapper(conn);
+        let mut conn: PooledConn = pool.get_conn().expect("There has been an error in the attempt to fetch a new connection");
+        tokio::spawn(async move {
+            request_wrapper(&mut conn);
         });
 
         thread::sleep(period);
