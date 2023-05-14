@@ -10,6 +10,8 @@ use mysql::{Pool, PooledConn};
 mod provider;
 mod database;
 
+use crate::provider::Item;
+
 fn value_or_default<T, E>(result: Result<T, E>, default: T) -> T {
     return match result {
         Ok(v) => v,
@@ -18,9 +20,15 @@ fn value_or_default<T, E>(result: Result<T, E>, default: T) -> T {
 }
 
 fn request_wrapper(conn: &mut PooledConn) {
-    let queries = database::get_queries(conn);
+    let queries = database::get_queries(conn).expect("Hmmmm no queries?????");
 
+    let mut updates: Vec<database::Update> = Vec::new();
 
+    for query in queries {
+        query.fetch_and_push_update(&mut updates).expect("Error while pew pew the request");
+    }
+
+    database::launch_all(conn, updates).expect("hmmm no updates????");
 }
 
 const DEFAULT_PERIOD: Duration = Duration::from_secs(15 * 60);

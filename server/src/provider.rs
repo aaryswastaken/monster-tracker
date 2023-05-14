@@ -21,7 +21,7 @@ fn generate_user_agent() -> String {
 }
 
 
-trait Item {
+pub trait Item {
     fn get_price(&self) -> BRes<f64>;
     fn fetch_and_push_update(&self, updates: &mut Vec<database::Update>) -> BRes<()>;
 
