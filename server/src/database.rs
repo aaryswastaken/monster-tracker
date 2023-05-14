@@ -4,6 +4,11 @@ use std::result::Result;
 use mysql::*;
 use mysql::prelude::Queryable;
 
+extern crate chrono;
+
+use chrono::prelude::*;
+
+// TODO: add chrono crate
 
 pub struct Update {
     item_id: u16,
@@ -23,16 +28,37 @@ pub struct QueryPart {
     ssc: String
 }
 
+trait Prepare {
+    fn prepare(&self) -> String 
+}
+
+impl Prepare for u64 {
+    fn prepare(&self) -> String {
+        panic!("To implemen!")
+    }
+}
+
 impl Update {
     fn launch(&self, conn: &mut Conn) -> Result<(), Box<dyn Error>> {
-        panic!("Deprecated");
+        conn.exec_drop("INSERT INTO prices ('item_id', 'shop_id', 'date', 'value') VALUES (?)",
+                (self.item_id, self.shop_id, self.query_epoch.prepare(), self.price, )
+            );
 
         return Ok(());
     }
 }
 
 pub fn launch_all(conn: &mut Conn, updates: Vec<Update>) -> Result<u16, Box<dyn Error>> {
-    return Ok(0);
+    conn.exec_batch("INSERT INTO prices ('item_id', 'shop_id', 'date', 'value') VALUES (:item_id, :shop_id, :date, :value)",
+            updates.iter.map(|p| params! {
+                "item_id" => p.item_id,
+                "shop_id" => p.shop_id,
+                "date" => p.query_epoch.prepare(), 
+                "value" => self.price
+            })
+        );
+
+    return Ok(updates.len() as u16);
 }
 
 pub fn get_queries(conn: &mut Conn) -> Result<Vec<QueryPart>, Box<dyn Error>> {
