@@ -33,7 +33,8 @@ fn request_wrapper(conn: &mut PooledConn) {
 
 const DEFAULT_PERIOD: Duration = Duration::from_secs(15 * 60);
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let username = env::var("DB_USERNAME").expect("No username has been provided");
     let password = env::var("DB_PASSWORD").expect("No password has been provided");
 
