@@ -28,7 +28,11 @@ fn request_wrapper(conn: &mut PooledConn) {
         query.fetch_and_push_update(&mut updates).expect("Error while pew pew the request");
     }
 
-    database::launch_all(conn, updates).expect("hmmm no updates????");
+    println!("Updates is {} long", updates.len());
+
+    let tot = database::launch_all(conn, updates).expect("hmmm no updates????");
+
+    print!("Launched {} requests", tot);
 }
 
 const DEFAULT_PERIOD: Duration = Duration::from_secs(15 * 60);

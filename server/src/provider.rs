@@ -84,7 +84,7 @@ impl Item for database::QueryPart {
         let output = match re_res.get(1) {
             Some(e) => e.as_str(),
             None => ""
-        };
+        }.replace(",", ".");
 
         println!("Output: {}", output);
 

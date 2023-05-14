@@ -41,7 +41,8 @@ trait Prepare {
 
 impl Prepare for u64 {
     fn prepare(&self) -> String {
-        panic!("To implemen!")
+        return Utc.timestamp(*self as i64, 0).to_rfc3339_opts(SecondsFormat::Secs, true)
+                    .replace("T", " ").replace("Z", "");
     }
 }
 
@@ -56,21 +57,21 @@ impl Update {
     fn launch(&self, conn: &mut PooledConn) -> Result<(), Box<dyn Error>> {
         conn.exec_drop("INSERT INTO prices ('item_id', 'shop_id', 'date', 'value') VALUES (?)",
                 (self.item_id, self.shop_id, self.query_epoch.prepare(), self.price, )
-            );
+            )?;
 
         return Ok(());
     }
 }
 
 pub fn launch_all(conn: &mut PooledConn, updates: Vec<Update>) -> Result<u16, Box<dyn Error>> {
-    conn.exec_batch("INSERT INTO prices ('item_id', 'shop_id', 'date', 'value') VALUES (:item_id, :shop_id, :date, :value)",
+    conn.exec_batch(r"INSERT INTO prices ('item_id', 'shop_id', 'date', 'value') VALUES (:item_id, :shop_id, :date, :value)",
             updates.iter().map(|p| params! {
                 "item_id" => p.item_id,
                 "shop_id" => p.shop_id,
                 "date" => p.query_epoch.prepare(),
                 "value" => p.price
             })
-        );
+        )?;
 
     return Ok(updates.len() as u16);
 }
