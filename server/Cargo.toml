@@ -3,10 +3,19 @@ name = "server"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name="server"
+path="src/main.rs"
+
+[[bin]]
+name="dumb"
+path="src/dumb.rs"
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 base64 = "0.21.0"
 chrono = "0.4.24"
 mysql = "23.0.1"
+regex = "1.8.1"
 tokio = { version = "1", features = [ "macros", "io-util", "rt", "rt-multi-thread" ] }

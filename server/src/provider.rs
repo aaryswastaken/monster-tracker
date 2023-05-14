@@ -2,6 +2,7 @@ use std::error::Error;
 use std::str;
 
 use std::process::{Command, Stdio};
+use regex::Regex;
 
 use crate::database;
 
@@ -22,22 +23,18 @@ fn generate_user_agent() -> String {
     return "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/112.0".to_string();
 }
 
-fn develop_ssc<'a>(raw: String) -> String {
-    let mut out = String::new();
-
+fn wrap_ssc(command: &mut Command, raw: String) -> &mut Command {
     let mut temp: &str;
+
     for part in raw.split(",") {
         let raw = base64::decode(part).unwrap();
         temp = str::from_utf8(&raw).unwrap();
 
-        if temp.len() >= 0 {
-            out += "--cookie ";
-            out += temp;
-            out += " ";
-        }
+        command.arg("--cookie");
+        command.arg(temp);
     }
 
-    return out
+    return command
 }
 
 
@@ -68,30 +65,28 @@ impl Item for database::QueryPart {
     }
 
     fn get_carrefour(&self) -> BRes<f64> {
-        let curl = Command::new("curl")
-            .arg("https://www.carrefour.fr".to_owned() + &self.external_item_id)
-            .arg(&develop_ssc(self.ssc.to_string()))
+        let curl = wrap_ssc(Command::new("curl")
+            .arg("https://www.carrefour.fr/p".to_owned() + &self.external_item_id),
+                self.ssc.to_string())
             .arg("-A")
             .arg(generate_user_agent())
             .stdout(Stdio::piped())
             .spawn()
             .unwrap();
 
+        let midway_raw = curl.wait_with_output().unwrap();
+        let raw = str::from_utf8(&midway_raw.stdout).unwrap();
+        println!("midway trash {}", raw);
 
+        let re = Regex::new(r#"<span.+class=\"[a-zA-Z0-9\-\_ ]*product-card-price__price--final\"[a-zA-Z0-9\-\_ =\"]*>[\n ]*([0-9\,]*)€[\n ]*<\/span>"#).unwrap();
 
-        let grep = Command::new("pcregrep")
-            .arg("-M")
-            .arg("-o1")
-            .arg("\"<span.+class=\\\"[a-zA-Z0-9\\-\\_ ]*product-card-price__price--final\\\"[a-zA-Z0-9\\-\\_ =\\\"]*>[\\n ]*([0-9\\,]*)€[\\n ]*<\\/span>\"")
-            .stdin(Stdio::from(curl.stdout.unwrap()))
-            .stdout(Stdio::piped())
-            .spawn()
-            .unwrap();
+        let re_res = re.captures(raw).unwrap();
+        let output = match re_res.get(1) {
+            Some(e) => e.as_str(),
+            None => ""
+        };
 
-        let output_raw = grep.wait_with_output().unwrap();
-        println!("{}", str::from_utf8(&output_raw.stdout).unwrap());
-
-        let output = str::from_utf8(&output_raw.stdout).unwrap().split("\n").collect::<Vec<&str>>()[0];
+        println!("Output: {}", output);
 
         let res = output.parse::<f64>()?;
 
