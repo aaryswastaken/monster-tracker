@@ -10,6 +10,15 @@ use chrono::prelude::*;
 
 // TODO: add chrono crate
 
+pub fn connect(host: String, username: String, password: String, port: String, db_name: String) -> Result<(mut Pool, mut Conn), Box<dyn Error>> {
+    let connection_url = format!("mysql://{}:{}@{}:{}/{}", username, password, host, port, db_name)
+
+    let mut pool = Pool::new(connection_url)?;
+    let mut conn = pool.get_conn()?;
+
+    return (pool, conn)
+}
+
 pub struct Update {
     item_id: u16,
     shop_id: u16,
