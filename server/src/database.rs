@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::result::Result;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use mysql::*;
 use mysql::prelude::Queryable;
@@ -25,13 +26,13 @@ pub struct Update {
 }
 
 pub struct QueryPart {
-    shop_id: u16,
-    internal_shop_id: u16,
-    shop_name: String,
-    item_id: u16,
-    item_name: String,
-    external_item_id: String,
-    ssc: String
+    pub shop_id: u16,
+    pub internal_shop_id: u16,
+    pub shop_name: String,
+    pub item_id: u16,
+    pub item_name: String,
+    pub external_item_id: String,
+    pub ssc: String
 }
 
 trait Prepare {
@@ -45,7 +46,14 @@ impl Prepare for u64 {
 }
 
 impl Update {
-    fn launch(&self, conn: &mut Conn) -> Result<(), Box<dyn Error>> {
+    pub fn construct(item: &QueryPart, price: f64) -> Self {
+        let now = SystemTime::now();
+        let epoch = now.duration_since(UNIX_EPOCH).expect("time went backwards").as_secs();
+
+        return Update { item_id: item.item_id, shop_id: item.shop_id, price, query_epoch: epoch };
+    }
+
+    fn launch(&self, conn: &mut PooledConn) -> Result<(), Box<dyn Error>> {
         conn.exec_drop("INSERT INTO prices ('item_id', 'shop_id', 'date', 'value') VALUES (?)",
                 (self.item_id, self.shop_id, self.query_epoch.prepare(), self.price, )
             );
@@ -54,7 +62,7 @@ impl Update {
     }
 }
 
-pub fn launch_all(conn: &mut Conn, updates: Vec<Update>) -> Result<u16, Box<dyn Error>> {
+pub fn launch_all(conn: &mut PooledConn, updates: Vec<Update>) -> Result<u16, Box<dyn Error>> {
     conn.exec_batch("INSERT INTO prices ('item_id', 'shop_id', 'date', 'value') VALUES (:item_id, :shop_id, :date, :value)",
             updates.iter().map(|p| params! {
                 "item_id" => p.item_id,
@@ -67,7 +75,7 @@ pub fn launch_all(conn: &mut Conn, updates: Vec<Update>) -> Result<u16, Box<dyn 
     return Ok(updates.len() as u16);
 }
 
-pub fn get_queries(conn: &mut Conn) -> Result<Vec<QueryPart>, Box<dyn Error>> {
+pub fn get_queries(conn: &mut PooledConn) -> Result<Vec<QueryPart>, Box<dyn Error>> {
     let query = format!("select s.sid as 'shop_id', ve.internal_id as 'internal_shop_id', s.name as 'shop_name', i.id as 'item_id', i.name as 'item_name', si.eid as 'external_item_id', s.specific_cookie as 'shop_specific_cookie' from shops s, items i, specific_id si, vendors ve where si.uid = i.id and si.vid = ve.vid and s.vendor = ve.vid;");
 
     // ssc is for shop specific cookie

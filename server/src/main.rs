@@ -18,7 +18,9 @@ fn value_or_default<T, E>(result: Result<T, E>, default: T) -> T {
 }
 
 fn request_wrapper(conn: &mut PooledConn) {
-    panic!("todo :)");
+    let queries = database::get_queries(conn);
+
+
 }
 
 const DEFAULT_PERIOD: Duration = Duration::from_secs(15 * 60);
