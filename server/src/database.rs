@@ -2,6 +2,8 @@ use std::error::Error;
 use std::result::Result;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use log::{info, error};
+
 use mysql::*;
 use mysql::prelude::Queryable;
 
@@ -64,15 +66,6 @@ impl Update {
 }
 
 pub fn launch_all(conn: &mut PooledConn, updates: Vec<Update>) -> Result<u16, Box<dyn Error>> {
-    // conn.exec_batch(r"INSERT INTO prices ('item_id', 'shop_id', 'date', 'value') VALUES (:item_id, :shop_id, :date, :value)",
-    //         updates.iter().map(|p| params! {
-    //             "item_id" => p.item_id,
-    //             "shop_id" => p.shop_id,
-    //             "date" => p.query_epoch.prepare(),
-    //             "value" => p.price
-    //         })
-    //     )?;
-
     let len_updates = updates.len();
 
     if len_updates > 0 {
@@ -90,9 +83,9 @@ pub fn launch_all(conn: &mut PooledConn, updates: Vec<Update>) -> Result<u16, Bo
             i += 1;
         }
 
-        println!("Issuing {}", query);
+        info!("Issuing {}", query);
 
-        let res: Vec<i64> = conn.query(query).unwrap();
+        let res: Vec<i64> = conn.query(query).map_err(|e| error!("There has been an issue in the mysql insertion: {}", e)).unwrap();
 
         println!("{:.?}", res);
     }
@@ -106,7 +99,7 @@ pub fn get_queries(conn: &mut PooledConn) -> Result<Vec<QueryPart>, Box<dyn Erro
     // ssc is for shop specific cookie
     let output = conn.query_map(query, |(shop_id, internal_shop_id, shop_name, item_id, item_name, external_item_id, ssc)| {
             return QueryPart { shop_id, internal_shop_id, shop_name, item_id, item_name, external_item_id, ssc}
-        })?;
+        }).map_err(|e| error!("There has been an issue in the request list query: {}", e)).unwrap();
 
     return Ok(output);
 }

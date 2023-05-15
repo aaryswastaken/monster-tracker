@@ -70,6 +70,7 @@ impl Item for database::QueryPart {
     }
 
     fn get_carrefour(&self) -> BRes<f64> {
+        trace!("Issuing a request to carrefour.fr");
         let curl = wrap_ssc(Command::new("curl")
             .arg("https://www.carrefour.fr/p".to_owned() + &self.external_item_id),
                 self.ssc.to_string())
