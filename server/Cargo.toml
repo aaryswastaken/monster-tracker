@@ -1,10 +1,10 @@
 [package]
-name = "server"
+name = "scraper"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name="server"
+name="scraper"
 path="src/main.rs"
 
 [[bin]]
@@ -16,6 +16,9 @@ path="src/dumb.rs"
 [dependencies]
 base64 = "0.21.0"
 chrono = "0.4.24"
+fern = { version="0.6.2", features=["colored"] }
+humantime = "2.1.0"
+log = "0.4.17"
 mysql = "23.0.1"
 regex = "1.8.1"
 tokio = { version = "1", features = [ "macros", "io-util", "rt", "rt-multi-thread" ] }
