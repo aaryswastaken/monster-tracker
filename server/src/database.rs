@@ -64,16 +64,40 @@ impl Update {
 }
 
 pub fn launch_all(conn: &mut PooledConn, updates: Vec<Update>) -> Result<u16, Box<dyn Error>> {
-    conn.exec_batch(r"INSERT INTO prices ('item_id', 'shop_id', 'date', 'value') VALUES (:item_id, :shop_id, :date, :value)",
-            updates.iter().map(|p| params! {
-                "item_id" => p.item_id,
-                "shop_id" => p.shop_id,
-                "date" => p.query_epoch.prepare(),
-                "value" => p.price
-            })
-        )?;
+    // conn.exec_batch(r"INSERT INTO prices ('item_id', 'shop_id', 'date', 'value') VALUES (:item_id, :shop_id, :date, :value)",
+    //         updates.iter().map(|p| params! {
+    //             "item_id" => p.item_id,
+    //             "shop_id" => p.shop_id,
+    //             "date" => p.query_epoch.prepare(),
+    //             "value" => p.price
+    //         })
+    //     )?;
 
-    return Ok(updates.len() as u16);
+    let len_updates = updates.len();
+
+    if len_updates > 0 {
+        let mut query = "INSERT INTO prices (item_id, shop_id, date, value) VALUES ".to_string();
+        let mut i = 0;
+
+
+        for update in updates {
+            query += &format!("({}, {}, \"{}\", {})", update.item_id, update.shop_id, update.query_epoch.prepare(), update.price);
+
+            if i < len_updates - 1 {
+                query += ", ";
+            }
+
+            i += 1;
+        }
+
+        println!("Issuing {}", query);
+
+        let res: Vec<i64> = conn.query(query).unwrap();
+
+        println!("{:.?}", res);
+    }
+
+    return Ok(len_updates as u16);
 }
 
 pub fn get_queries(conn: &mut PooledConn) -> Result<Vec<QueryPart>, Box<dyn Error>> {
