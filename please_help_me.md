@@ -1,0 +1,70 @@
+# Contributing to the referencement
+
+By now, the referencement of the different shops and item is done by hand.
+
+I've done quite a lot of research that you can look in `notes.md`, by referencing some vendors already. You can help by finding others. Please feel free to submit pull requests to add more methods to query those vendors (`provider::Item trait for database::QueryPart`)
+
+One other (and easier) way to contribute is to reference new shops / item
+
+## Current issues
+
+I can't manage to see the difference in price between two Monoprix nor can I identify a part in the request I can change to specify a specific shop. I need help on that.
+
+## Vocab
+
+Each vendor (Carrefour) has sevral shops. A specific item (Monster Energy Classic) has a specific ID for every vendor and every shop has a specific cookie associated to it.
+
+## Helping with the item referencement
+
+Just go to your favourite vendor's online shop (you might have to specifiy a shop to go further), then select the part of the url that corresponds to the item you searched.
+
+Some of these urls can be found only in the debug tools (in the network section) but I don't really remember which one so if the url you have doesn't match what I've found, it is probably because the request you're looking for is hidden in the network tab.
+
+```
+ --- Carrefour:
+
+ https://www.carrefour.fr/p/boisson-energisante-monster-energy-5060335632302
+                         ---------------------------------------------------
+
+ Please provide the /p/<long-id> part
+
+
+ --- Intermarche
+
+ https://www.intermarche.com/produit/boisson-energisante-energy/5060335632302
+                            -------------------------------------------------
+
+ Please provide the /produit/<human-readable>/<bignumber> part
+
+
+ --- Casino
+
+ https://www.casino.fr/casinoexpress_web/affichageDetailProduit/WE69944/F-7[...]trait/P-2974[...]ette?_=1683027746779
+                                                                       ----------------------------------------------
+
+ Please provide the /<bigthing>/<otherbigthing>?<thing>
+
+
+ --- Franprix
+
+ https://www.franprix.fr/courses/p/99044938
+                                -----------
+
+ Please provide the /p/<number>
+
+
+ --- Monoprix (has issue)
+
+ https://courses.monoprix.fr/api/v4/products/bop?retailerProductId=MPX_2443401
+                                            ----------------------------------
+
+ Please provide the bop? part
+ Note: I know this needs to be searched in the newtork tab of the debug tools
+```
+
+Once you have this id, send me a dm on discord with the appropriate item name, vendor and id.
+
+
+## Helping with the shop referencement
+
+
