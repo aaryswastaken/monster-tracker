@@ -49,6 +49,7 @@ pub trait Item {
     fn get_carrefour(&self) -> BRes<f64>;
     fn get_intermarche(&self) -> BRes<f64>;
     fn get_casino(&self) -> BRes<f64>;
+    fn get_franprix(&self) -> BRes<f64>;
 }
 
 impl Item for database::QueryPart {
@@ -57,6 +58,7 @@ impl Item for database::QueryPart {
             1 => self.get_carrefour(),
             2 => self.get_intermarche(),
             3 => self.get_casino(),
+            4 => self.get_franprix(),
 
             _ => {
                 error!("Tried to target an unsupported vendor. Id: {}", self.internal_shop_id);
@@ -254,6 +256,46 @@ impl Item for database::QueryPart {
             .map_err(|e| error!("There has been an error in the result parsing: {}", e)).unwrap();
 
         return Ok(res);
+    }
 
+    fn get_franprix(&self) -> BRes<f64> {
+        trace!("Issuing a request to franprix.fr, using url:\n   franprix.fr/courses{}", &self.external_item_id);
+        let curl = wrap_ssc(Command::new("curl")
+            .arg("https://www.franprix.fr/courses".to_owned() + &self.external_item_id),
+                self.ssc.to_string())
+            .arg("-A")
+            .arg(generate_user_agent())
+            .stdout(Stdio::piped())
+            .spawn()
+            .map_err(|e| error!("There is an issue in the cURL: {}", e))
+            .unwrap();
+
+        let midway_raw = curl.wait_with_output()
+                .map_err(|e| error!("There has been an error in the curl stdout fetch: {}", e)).unwrap();
+        let raw = str::from_utf8(&midway_raw.stdout)
+                .map_err(|e| error!("There has been an error in the curl out aggregation: {}", e)).unwrap();
+
+        let re = Regex::new(r#"product-item-price[\ \"][a-zA-Z0-9\ \-\_\:\"<>]*([0-9]+,[0-9]*) €"#)
+                .map_err(|e| error!("There has been an error in the regex: {}", e)).unwrap();
+
+        let re_res = match re.captures(raw) {
+            Some(e) => e,
+            None => {
+                error!("There has been an issue in the capturing group");
+                panic!("see log");
+            }
+        };
+
+        let output = match re_res.get(1) {
+            Some(e) => e.as_str(),
+            None => ""
+        }.replace(",", ".");
+
+        println!("Output: {}", output);
+
+        let res = output.parse::<f64>()
+            .map_err(|e| error!("There has been an error in the result parsing: {}", e)).unwrap();
+
+        return Ok(res);
     }
 }
