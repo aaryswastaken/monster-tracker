@@ -34,3 +34,20 @@ impl fmt::Display for PriceFetchingAborted {
 }
 
 impl Error for PriceFetchingAborted {}
+
+#[derive(Debug, Clone)]
+pub struct DatabaseError;
+
+impl DatabaseError {
+    pub fn spawn() -> Box<&'static Self> {
+        return Box::new(&Self)
+    }
+}
+
+impl fmt::Display for DatabaseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "There has been an issue whith the database")
+    }
+}
+
+impl Error for DatabaseError {}

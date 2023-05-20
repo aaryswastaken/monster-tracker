@@ -4,12 +4,14 @@ use std::result::Result;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::fmt;
 
-use log::{info, error};
+use log::{trace, error};
 
 use mysql::*;
 use mysql::prelude::Queryable;
 
 use chrono::prelude::*;
+
+use crate::errors::DatabaseError;
 
 // TODO: add chrono crate
 
@@ -78,7 +80,7 @@ pub fn launch_all(conn: &mut PooledConn, updates: Vec<Update>) -> Result<u16, Bo
 
     if len_updates > 0 {
         let mut query = "INSERT INTO prices (item_id, shop_id, date, value) VALUES ".to_string();
-        let mut i = 0;
+        let mut i: usize = 0;
 
 
         for update in updates {
@@ -91,23 +93,32 @@ pub fn launch_all(conn: &mut PooledConn, updates: Vec<Update>) -> Result<u16, Bo
             i += 1;
         }
 
-        info!("Issuing {}", query);
+        trace!("Issuing {}", query);
 
-        let res: Vec<i64> = conn.query(query).map_err(|e| error!("There has been an issue in the mysql insertion: {}", e)).unwrap();
+        return match conn.query::<Vec<u8>, String>(query) {
+            Ok(_) => Ok(i as u16),
+            Err(e) => {
+                error!("There has been an issue in the mysql insertion: {}", e);
 
-        println!("{:.?}", res);
+                Err(DatabaseError::spawn())
+            }
+        }
     }
 
     return Ok(len_updates as u16);
 }
 
-pub fn get_queries(conn: &mut PooledConn) -> Result<Vec<QueryPart>, Box<dyn Error>> {
+pub fn get_queries(conn: &mut PooledConn) -> Result<Vec<QueryPart>, mysql::Error> {
     let query = format!("select s.sid as 'shop_id', ve.internal_id as 'internal_shop_id', s.name as 'shop_name', i.id as 'item_id', i.name as 'item_name', si.eid as 'external_item_id', s.specific_cookie as 'shop_specific_cookie' from shops s, items i, specific_id si, vendors ve where si.uid = i.id and si.vid = ve.vid and s.vendor = ve.vid;");
 
     // ssc is for shop specific cookie
-    let output = conn.query_map(query, |(shop_id, internal_shop_id, shop_name, item_id, item_name, external_item_id, ssc)| {
+    return match conn.query_map(query, |(shop_id, internal_shop_id, shop_name, item_id, item_name, external_item_id, ssc)| {
             return QueryPart { shop_id, internal_shop_id, shop_name, item_id, item_name, external_item_id, ssc}
-        }).map_err(|e| error!("There has been an issue in the request list query: {}", e)).unwrap();
-
-    return Ok(output);
+        }) {
+        Ok(e) => Ok(e),
+        Err(e) => {
+            error!("There has been an issue in the request list query: {}", e);
+            Err(e)
+        }
+    }
 }
