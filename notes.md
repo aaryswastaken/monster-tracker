@@ -33,6 +33,10 @@ server side bullshit -> que par puppeteet & cie
 
 cookie: itm_pdv: {%22ref%22:%2207042%22%2C%22isEcommerce%22:true%2C%22name%22:%22Express%2520Villeurbanne%22}
 
+*After implementing this in the code, I have no idea what black whitchcraftery it uses*
+
+This regex works with the capturing group: `<span class=\"productDetail__productPrice\"[<>a-zA-Z\= \"_0-9\/,!-]*>([0-9]*<\/span>[,.][0-9 ]*)€<\/span>`
+
 curl
 sed "s/<!--[ ]*-->//g"
 grep "<span class=\"productDetail__productPrice\"[<>a-zA-Z\= \"_0-9\/,!-]*€<\/span>"

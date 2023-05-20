@@ -33,7 +33,9 @@ fn wrap_ssc(command: &mut Command, raw: String) -> &mut Command {
         temp = str::from_utf8(&raw).map_err(|e| error!("There has been an issue in the base64 result accumulation: {}", e)).unwrap();
 
         command.arg("--cookie");
-        command.arg(temp);
+        command.arg(&temp);
+
+        trace!("Using specific cookie {}", temp)
     }
 
     return command
@@ -45,12 +47,14 @@ pub trait Item {
     fn fetch_and_push_update(&self, updates: &mut Vec<database::Update>) -> BRes<()>;
 
     fn get_carrefour(&self) -> BRes<f64>;
+    fn get_intermarche(&self) -> BRes<f64>;
 }
 
 impl Item for database::QueryPart {
     fn get_price(&self) -> BRes<f64> {
         return match self.internal_shop_id {
             1 => self.get_carrefour(),
+            2 => self.get_intermarche(),
 
             _ => {
                 error!("Tried to target an unsupported vendor. Id: {}", self.internal_shop_id);
@@ -70,7 +74,7 @@ impl Item for database::QueryPart {
     }
 
     fn get_carrefour(&self) -> BRes<f64> {
-        trace!("Issuing a request to carrefour.fr");
+        trace!("Issuing a request to carrefour.fr, using url:\n   carrefour.fr/p{}", &self.external_item_id);
         let curl = wrap_ssc(Command::new("curl")
             .arg("https://www.carrefour.fr/p".to_owned() + &self.external_item_id),
                 self.ssc.to_string())
@@ -103,6 +107,60 @@ impl Item for database::QueryPart {
         }.replace(",", ".");
 
         println!("Output: {}", output);
+
+        let res = output.parse::<f64>()
+            .map_err(|e| error!("There has been an error in the result parsing: {}", e)).unwrap();
+
+        return Ok(res);
+    }
+
+    fn get_intermarche(&self) -> BRes<f64> {
+        trace!("Issuing a request to intermarche.com using url:\n    intermarche.com{}", &self.external_item_id);
+
+        let curl = wrap_ssc(Command::new("curl")
+            .arg("https://www.intermarche.com".to_owned() + &self.external_item_id),
+                self.ssc.to_string())
+            .arg("-A")
+            .arg(generate_user_agent())
+            .arg("--http1.1")
+            .stdout(Stdio::piped())
+            .spawn()
+            .map_err(|e| error!("There is an issue in the cURL: {}", e))
+            .unwrap();
+
+        let i1_regex = Regex::new(r"<!--[ ]*-->")
+            .map_err(|e| error!("There has been a very unexpected error in the regex creation (regex#1): {}", e))
+            .unwrap();
+
+        let raw_curl_result = curl.wait_with_output()
+            .map_err(|e| error!("There has been an error with the curl stdout fetch: {}", e))
+            .unwrap();
+
+        let curl_result = str::from_utf8(&raw_curl_result.stdout)
+            .map_err(|e| error!("There has been an error in the curl out aggregation: {}", e))
+            .unwrap();
+
+
+        let intermediate_result = i1_regex.replace_all(curl_result, "");
+
+        let re = Regex::new(r#"<span class=\"productDetail__productPrice\"[<>a-zA-Z\= \"_0-9\/,!-]*>([0-9]*<\/span>[,.][0-9 ]*)€<\/span>"#)
+            .map_err(|e| error!("There has been a very unexpected error in the main regex creation: {}", e))
+            .unwrap();
+
+        let re_res = match re.captures(&intermediate_result) {
+            Some(e) => e,
+            None => {
+                error!("There has been an issue in the capturing group");
+                panic!("see log");
+            }
+        };
+
+        let output = match re_res.get(1) {
+            Some(e) => e.as_str(),
+            None => ""
+        }.replace(",", ".").replace("</span>", "").replace(" ", "");
+
+        trace!("DEBUG: result of that shit: {}", output);
 
         let res = output.parse::<f64>()
             .map_err(|e| error!("There has been an error in the result parsing: {}", e)).unwrap();
