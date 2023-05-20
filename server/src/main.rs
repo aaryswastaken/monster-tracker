@@ -4,7 +4,7 @@ use fern;
 use fern::colors::Color;
 
 use humantime;
-use log::{error, info, trace};
+use log::{error, info, trace, warn};
 
 use tokio;
 
@@ -15,6 +15,7 @@ use mysql::{Pool, PooledConn};
 
 mod provider;
 mod database;
+mod errors;
 
 use crate::provider::Item;
 
@@ -34,12 +35,19 @@ fn request_wrapper(conn: &mut PooledConn, i: i64) {
     info!(target: &log_target, "There is {} queries to issue", queries.len());
 
     let mut updates: Vec<database::Update> = Vec::new();
+    let mut errors: u16 = 0;
 
     for query in queries {
-        query.fetch_and_push_update(&mut updates).expect("Error while pew pew the request");
+        match query.fetch_and_push_update(&mut updates) {
+            Ok(_) => continue,
+            Err(_) => {
+                warn!("Query {} has had a problem", query);
+                errors += 1;
+            }
+        }
     }
 
-    info!(target: &log_target, "Updates is {} long", updates.len());
+    info!(target: &log_target, "Updates is {} long, there has been a total of {} errors while executing the queries", updates.len(), errors);
 
     let tot = database::launch_all(conn, updates).expect("hmmm no updates????");
 

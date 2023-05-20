@@ -1,6 +1,8 @@
 use std::error::Error;
+use std::fs::write;
 use std::result::Result;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::fmt;
 
 use log::{info, error};
 
@@ -35,6 +37,12 @@ pub struct QueryPart {
     pub item_name: String,
     pub external_item_id: String,
     pub ssc: String
+}
+
+impl fmt::Display for QueryPart {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} at {}", self.item_name, self.shop_name)
+    }
 }
 
 trait Prepare {

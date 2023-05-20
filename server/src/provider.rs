@@ -7,6 +7,7 @@ use std::process::{Command, Stdio};
 use regex::Regex;
 
 use crate::database;
+use crate::errors::{NotImplementedError, PriceFetchingAborted};
 
 extern crate base64;
 
@@ -25,20 +26,29 @@ fn generate_user_agent() -> String {
     return "Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/112.0".to_string();
 }
 
-fn wrap_ssc(command: &mut Command, raw: String) -> &mut Command {
+fn wrap_ssc(command: &mut Command, raw: String) -> BRes<&mut Command> {
     let mut temp: &str;
 
-    for part in raw.split(",") {
-        let raw = base64::decode(part).map_err(|e| error!("There has been an issue in the base64 cookie parsing: {}", e)).unwrap();
-        temp = str::from_utf8(&raw).map_err(|e| error!("There has been an issue in the base64 result accumulation: {}", e)).unwrap();
+    // I have no idea on how to do it properly
+    match {
+        for part in raw.split(",") {
+            let raw = base64::decode(part)?;
+            temp = str::from_utf8(&raw)?;
 
-        command.arg("--cookie");
-        command.arg(&temp);
+            command.arg("--cookie");
+            command.arg(&temp);
 
-        trace!("Using specific cookie {}", temp)
+            trace!("Using specific cookie {}", temp)
+        }
+
+        Ok(command)
+    } {
+        Ok(command) => Ok(command),
+        Err(e) => {
+            error!("There has been an error while parsing the cookie: {}", e);
+            Err(e)
+        }
     }
-
-    return command
 }
 
 
@@ -56,19 +66,25 @@ impl Item for database::QueryPart {
     fn get_price(&self) -> BRes<f64> {
         return match self.internal_shop_id {
             1 => self.get_carrefour(),
-            2 => self.get_intermarche(),
+            // 2 => self.get_intermarche(),
             3 => self.get_casino(),
             4 => self.get_franprix(),
 
             _ => {
                 error!("Tried to target an unsupported vendor. Id: {}", self.internal_shop_id);
-                panic!("Not implemented yet :(");
+                return Err(NotImplementedError::spawn())
             }
         }
     }
 
     fn fetch_and_push_update(&self, updates: &mut Vec<database::Update>) -> BRes<()> {
-        let price = self.get_price().map_err(|e| error!("There has been an issue in the price fetching method: {}", e)).unwrap();
+        let price: f64 = match self.get_price().map_err(|e| error!("There has been an issue in the price fetching method: {}", e)) {
+            Ok(e) => e,
+            Err(_) => {
+                error!("There has been an error in the price fetching call");
+                return Err(PriceFetchingAborted::spawn())
+            }
+        };
 
         let update = database::Update::construct(self, price);
 
@@ -81,7 +97,7 @@ impl Item for database::QueryPart {
         trace!("Issuing a request to carrefour.fr, using url:\n   carrefour.fr/p{}", &self.external_item_id);
         let curl = wrap_ssc(Command::new("curl")
             .arg("https://www.carrefour.fr/p".to_owned() + &self.external_item_id),
-                self.ssc.to_string())
+                self.ssc.to_string())?
             .arg("-A")
             .arg(generate_user_agent())
             .stdout(Stdio::piped())
@@ -123,7 +139,7 @@ impl Item for database::QueryPart {
 
         let curl = wrap_ssc(Command::new("curl")
             .arg("https://www.intermarche.com".to_owned() + &self.external_item_id),
-                self.ssc.to_string())
+                self.ssc.to_string())?
             .arg("-A")
             .arg(generate_user_agent())
             .arg("--http1.1")
@@ -221,7 +237,7 @@ impl Item for database::QueryPart {
         trace!("Issuing a request to casino.fr, using url:\n   {}", &prepared_url);
         let curl = wrap_ssc(Command::new("curl")
             .arg(prepared_url),
-                self.ssc.to_string())
+                self.ssc.to_string())?
             .arg("-A")
             .arg(generate_user_agent())
             .stdout(Stdio::piped())
@@ -262,7 +278,7 @@ impl Item for database::QueryPart {
         trace!("Issuing a request to franprix.fr, using url:\n   franprix.fr/courses{}", &self.external_item_id);
         let curl = wrap_ssc(Command::new("curl")
             .arg("https://www.franprix.fr/courses".to_owned() + &self.external_item_id),
-                self.ssc.to_string())
+                self.ssc.to_string())?
             .arg("-A")
             .arg(generate_user_agent())
             .stdout(Stdio::piped())
